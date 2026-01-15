@@ -1,0 +1,226 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Trebuchet MS", Georgia, serif;
+}
+
+body {
+  background: radial-gradient(circle at top, #2c2a1f, #0f0e0a);
+  height: 100vh;
+}
+
+/* App container */
+.chat-container {
+  width: 100%;
+  max-width: 420px;
+  height: 100vh;
+  margin: auto;
+  background: linear-gradient(#f6f1d1, #e3d7a3);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+/* Header layout */
+.chat-header {
+  padding: 12px 14px;
+  background: linear-gradient(#8b6b3f, #5e4422);
+  color: #f9e9b7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Left title */
+.header-left {
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+/* Right timer */
+.header-right {
+  font-size: 14px;
+  font-weight: bold;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+}
+
+
+/* Chat area */
+.chat-box {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background: url("https://www.transparenttextures.com/patterns/papyrus.png");
+}
+
+/* Messages */
+.message {
+  max-width: 85%;
+  padding: 12px 14px;
+  margin: 6px 0;
+  border-radius: 14px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Bot / Question */
+.bot {
+  align-self: flex-start;
+  background: #efe3b8;
+  border: 1px solid #b59b5b;
+  color: #3b2a12;
+  border-top-left-radius: 4px;
+}
+
+/* User / Answer */
+.user {
+  align-self: flex-end;
+  background: linear-gradient(#cfae70, #a8843d);
+  color: #2a1a05;
+  border: 1px solid #6b4f1f;
+  border-top-right-radius: 4px;
+  text-align: right;
+  font-weight: bold;
+}
+
+/* Input area */
+.chat-input {
+  display: flex;
+  padding: 10px;
+  background: #d8c58a;
+  position: sticky;
+  bottom: 0;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #7a5c2e;
+  background: #fff8dc;
+  font-size: 16px;
+}
+
+.chat-input button {
+  margin-left: 8px;
+  padding: 12px 18px;
+  background: linear-gradient(#9b7b3f, #6d5324);
+  color: #fff3c4;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+/* Remove focus zoom issue on iOS */
+input, button {
+  outline: none;
+}
+
+/* Small devices */
+@media (max-width: 360px) {
+  .message {
+    font-size: 14px;
+  }
+}
+
+
+/* Correct answer animation */
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes glow {
+  0% { box-shadow: 0 0 0 rgba(255,215,0,0); }
+  50% { box-shadow: 0 0 15px rgba(255,215,0,0.8); }
+  100% { box-shadow: 0 0 0 rgba(255,215,0,0); }
+}
+
+@keyframes treasurePulse {
+  0% { background-color: rgba(255, 215, 0, 0); }
+  50% { background-color: rgba(255, 215, 0, 0.12); }
+  100% { background-color: rgba(255, 215, 0, 0); }
+}
+
+/* Applied classes */
+.correct-pop {
+  animation: pop 0.4s ease;
+}
+
+.correct-glow {
+  animation: glow 0.6s ease;
+}
+
+.treasure-pulse {
+  animation: treasurePulse 0.6s ease;
+}
+
+/* =========================
+   ACCESS SCREEN
+========================= */
+
+.access-screen {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle, #1a140a, #000);
+}
+
+.access-box {
+  background: linear-gradient(#f6f1d1, #e3d7a3);
+  padding: 30px;
+  border-radius: 14px;
+  text-align: center;
+  width: 90%;
+  max-width: 320px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+}
+
+.access-box h2 {
+  margin-bottom: 15px;
+  color: #3b2a12;
+}
+
+.access-box input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #7a5c2e;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.access-box button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(#9b7b3f, #6d5324);
+  color: #fff3c4;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.error-text {
+  color: #b30000;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+/* Hide utility */
+.hidden {
+  display: none;
+}

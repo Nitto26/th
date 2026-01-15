@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat Quiz</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+</head>
+<body>
+
+<!-- ACCESS SCREEN -->
+<div id="accessScreen" class="access-screen">
+  <div class="access-box">
+    <h2>Enter Code</h2>
+    <input type="text" id="accessCode" placeholder="Enter access code" />
+    <button onclick="checkAccess()">Unlock</button>
+    <p id="accessError" class="error-text"></p>
+  </div>
+</div>
+
+<!-- HEADER (HIDDEN INITIALLY) -->
+<div class="chat-header hidden">
+  <div class="header-left">Heist and Seek</div>
+  <div class="header-right">
+    <span id="timer">Time: 0s</span>
+  </div>
+</div>
+
+<!-- CHAT CONTAINER (HIDDEN INITIALLY) -->
+<div class="chat-container hidden">
+
+  <div id="chatBox" class="chat-box"></div>
+
+  <div class="chat-input">
+    <input type="text" id="userInput" placeholder="Type your answer..." />
+    <button onclick="sendAnswer()">Send</button>
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
