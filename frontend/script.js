@@ -1,68 +1,121 @@
-// ===============================
-// ACCESS CODE LOGIC
-// ===============================
-const ACCESS_CODE = "Relicarium";
+// ================================
+// CONFIG
+// ================================
+const ACCESS_CODE = "relicarium";
+const ACCESS_KEY = "heist_access";
+const INDEX_KEY = "heist_index";
+const TEAM_KEY = "heist_team_no";
 
+// ================================
+// TIMER STATE
+// ================================
+let timerInterval = null;
+let timeElapsed = 0;
+
+// ================================
+// QUIZ STATE
+// ================================
+let questions = [];
+let currentIndex = 0;
+let quizStarted = false;
+
+// ================================
+// RESTORE SESSION ON LOAD
+// ================================
+document.addEventListener("DOMContentLoaded", () => {
+  if (sessionStorage.getItem(ACCESS_KEY) === "granted") {
+    currentIndex = parseInt(sessionStorage.getItem(INDEX_KEY)) || 0;
+    startQuizUI();
+  }
+});
+
+// ================================
+// ACCESS CHECK (TEAM + CODE)
+// ================================
 function checkAccess() {
-  const input = document.getElementById("accessCode").value.trim();
+  const teamInput = document.getElementById("teamNo");
+  const codeInput = document.getElementById("accessCode");
   const error = document.getElementById("accessError");
 
-  if (input === ACCESS_CODE) {
-    // Hide access screen
-    document.getElementById("accessScreen").style.display = "none";
+  if (!teamInput || !codeInput) return;
 
-    // Show quiz UI
-    document.querySelector(".chat-header").classList.remove("hidden");
-    document.querySelector(".chat-container").classList.remove("hidden");
+  const teamNo = teamInput.value.trim();
+  const code = codeInput.value.trim().toLowerCase();
 
-    // Start loading questions
+  if (teamNo === "") {
+    error.innerText = "Team No is required.";
+    return;
+  }
+
+  if (code !== ACCESS_CODE) {
+    error.innerText = "Invalid access code.";
+    return;
+  }
+
+  // Save session state
+  sessionStorage.setItem(ACCESS_KEY, "granted");
+  sessionStorage.setItem(TEAM_KEY, teamNo);
+  sessionStorage.setItem(INDEX_KEY, "0");
+
+  currentIndex = 0;
+  startQuizUI();
+}
+
+// ================================
+// START QUIZ UI
+// ================================
+function startQuizUI() {
+  const accessScreen = document.getElementById("accessScreen");
+  if (accessScreen) accessScreen.style.display = "none";
+
+  document.querySelector(".chat-header").classList.remove("hidden");
+  document.querySelector(".chat-container").classList.remove("hidden");
+
+  quizStarted = true;
+
+  if (questions.length === 0) {
     loadQuestions();
-  } else {
-    error.innerText = "Invalid code. Access denied.";
   }
 }
 
-
-// ===============================
-// TIMER VARIABLES
-// ===============================
-let timerInterval;
-let timeElapsed = 0; // seconds spent on current question
-
-// ===============================
-// QUIZ VARIABLES
-// ===============================
-let questions = [];
-let currentIndex = 0;
-
-// ===============================
-// LOAD QUESTIONS FROM BACKEND
-// ===============================
+// ================================
+// LOAD QUESTIONS (BACKEND)
+// ================================
 function loadQuestions() {
   fetch("http://127.0.0.1:8000/questions")
     .then(res => res.json())
     .then(data => {
-      questions = data.questions;
-      showQuestion();
+      questions = data.questions || [];
+
+      if (questions.length > 0) {
+        showQuestion();
+      } else {
+        showBotMessage("No questions available.");
+      }
     })
-    .catch(err => {
-      console.error(err);
+    .catch(() => {
       showBotMessage("Failed to load questions.");
     });
 }
 
-
-// ===============================
-// SHOW QUESTION + START TIMER
-// ===============================
+// ================================
+// SHOW QUESTION
+// ================================
 function showQuestion() {
+  if (currentIndex >= questions.length) return;
+
   showBotMessage(questions[currentIndex].question);
   startTimer();
+
+  setTimeout(() => {
+    const input = document.getElementById("userInput");
+    if (input) input.focus();
+  }, 100);
 }
 
-// ===============================
-// INCREASING TIMER
-// ===============================
+// ================================
+// TIMER (INCREASING)
+// ================================
 function startTimer() {
   clearInterval(timerInterval);
   timeElapsed = 0;
@@ -75,81 +128,64 @@ function startTimer() {
 }
 
 function updateTimerUI() {
-  const timerEl = document.getElementById("timer");
-  if (timerEl) {
-    timerEl.innerText = `Time: ${timeElapsed}s`;
-  }
+  const timer = document.getElementById("timer");
+  if (timer) timer.innerText = `Time: ${timeElapsed}s`;
 }
 
-// ===============================
+// ================================
 // SEND ANSWER
-// ===============================
+// ================================
 function sendAnswer() {
-  const input = document.getElementById("userInput");
-  const rawInput = input.value.trim();
-  if (rawInput === "") return;
+  if (!quizStarted) return;
 
-  const userAnswer = rawInput.toLowerCase();
-  showUserMessage(rawInput);
+  const input = document.getElementById("userInput");
+  if (!input) return;
+
+  const rawAnswer = input.value.trim();
+  if (rawAnswer === "") return;
+
+  showUserMessage(rawAnswer);
   input.value = "";
 
-  // SEND ANSWER TO BACKEND
   fetch("http://127.0.0.1:8000/check-answer", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      team_no: sessionStorage.getItem(TEAM_KEY),
       qid: currentIndex,
-      answer: userAnswer,
+      answer: rawAnswer.toLowerCase(),
       time_taken: timeElapsed
     })
   })
     .then(res => res.json())
     .then(result => {
-
       if (result.correct) {
         clearInterval(timerInterval);
 
-        // Animate user bubble
-        const userBubble = document.querySelector(".message.user:last-child");
-        if (userBubble) userBubble.classList.add("correct-pop");
-
-        // Success message
-        const botBubble = showBotMessage(
-          `Correct! Solved in ${timeElapsed} seconds.`
-        );
-        botBubble.classList.add("correct-glow");
-
-        // Screen pulse
-        document.body.classList.add("treasure-pulse");
-        setTimeout(() => {
-          document.body.classList.remove("treasure-pulse");
-        }, 600);
+        showBotMessage(`Correct! Solved in ${timeElapsed} seconds.`);
 
         currentIndex++;
+        sessionStorage.setItem(INDEX_KEY, currentIndex.toString());
 
         if (currentIndex < questions.length) {
-          setTimeout(showQuestion, 1000);
+          setTimeout(showQuestion, 800);
         } else {
           showBotMessage("🎉 Quiz completed!");
           document.getElementById("timer").innerText = "";
+          sessionStorage.removeItem(INDEX_KEY);
         }
-
       } else {
         showBotMessage("Wrong answer. Try again.");
       }
-
     })
-    .catch(err => {
-      console.error(err);
+    .catch(() => {
       showBotMessage("Server error. Try again.");
     });
 }
 
-// ===============================
+// ================================
 // MESSAGE HELPERS
-// ===============================
+// ================================
 function showBotMessage(text) {
   return addMessage(text, "bot");
 }
@@ -166,4 +202,60 @@ function addMessage(text, type) {
   chatBox.appendChild(msg);
   chatBox.scrollTop = chatBox.scrollHeight;
   return msg;
+}
+
+// ================================
+// GLOBAL ENTER KEY (NO RELOAD)
+// ================================
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+
+    const accessScreen = document.getElementById("accessScreen");
+    if (accessScreen && accessScreen.style.display !== "none") {
+      checkAccess();
+      return;
+    }
+
+    if (quizStarted) {
+      sendAnswer();
+    }
+  }
+});
+
+// ================================
+// DRAWER MENU LOGIC
+// ================================
+function toggleDrawer() {
+  document.getElementById("sideDrawer").classList.add("open");
+  document.getElementById("drawerOverlay").classList.add("show");
+}
+
+function closeDrawer() {
+  document.getElementById("sideDrawer").classList.remove("open");
+  document.getElementById("drawerOverlay").classList.remove("show");
+}
+
+// ================================
+// LOGOUT
+// ================================
+function logout() {
+  // Clear session
+  sessionStorage.clear();
+
+  // Reset state
+  questions = [];
+  currentIndex = 0;
+  quizStarted = false;
+  clearInterval(timerInterval);
+
+  // Reset UI
+  document.getElementById("chatBox").innerHTML = "";
+  document.getElementById("timer").innerText = "Time: 0s";
+
+  document.querySelector(".chat-header").classList.add("hidden");
+  document.querySelector(".chat-container").classList.add("hidden");
+  document.getElementById("accessScreen").style.display = "flex";
+
+  closeDrawer();
 }

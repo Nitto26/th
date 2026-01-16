@@ -2,30 +2,34 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import csv
-from datetime import datetime
 import os
+from datetime import datetime
 
 app = FastAPI()
 
-# =========================
-# CORS (allow frontend)
-# =========================
+# ==================================================
+# CORS CONFIGURATION (VALID & SAFE)
+# ==================================================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # for development only
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500"
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"]
 )
 
-# =========================
+# ==================================================
 # FILE PATHS
-# =========================
+# ==================================================
 QUESTIONS_FILE = "questions.csv"
 RESULTS_FILE = "results.csv"
 
-# =========================
-# LOAD QUESTIONS
-# =========================
+# ==================================================
+# LOAD QUESTIONS FROM CSV
+# ==================================================
 questions = []
 
 with open(QUESTIONS_FILE, newline="", encoding="utf-8") as f:
@@ -36,25 +40,25 @@ with open(QUESTIONS_FILE, newline="", encoding="utf-8") as f:
             "answer": row["answer"].strip().lower()
         })
 
-# =========================
+# ==================================================
 # CREATE results.csv IF NOT EXISTS
-# =========================
+# ==================================================
 if not os.path.exists(RESULTS_FILE):
     with open(RESULTS_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["question_id", "time_taken", "timestamp"])
 
-# =========================
+# ==================================================
 # REQUEST MODEL
-# =========================
+# ==================================================
 class AnswerPayload(BaseModel):
     qid: int
     answer: str
     time_taken: int
 
-# =========================
+# ==================================================
 # ROUTES
-# =========================
+# ==================================================
 
 @app.get("/")
 def root():
@@ -63,7 +67,7 @@ def root():
 @app.get("/questions")
 def get_questions():
     """
-    Send ONLY questions (no answers)
+    Send questions ONLY (answers are hidden)
     """
     return {
         "questions": [
@@ -75,7 +79,7 @@ def get_questions():
 @app.post("/check-answer")
 def check_answer(payload: AnswerPayload):
     """
-    Check answer and store timer if correct
+    Validate answer and store time if correct
     """
     if payload.qid < 0 or payload.qid >= len(questions):
         return {"correct": False}
@@ -97,7 +101,7 @@ def check_answer(payload: AnswerPayload):
 @app.get("/results")
 def get_results():
     """
-    View stored results
+    View stored timer results
     """
     results = []
     with open(RESULTS_FILE, newline="", encoding="utf-8") as f:
