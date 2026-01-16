@@ -52,7 +52,6 @@ function checkAccess() {
     return;
   }
 
-  // Save session state
   sessionStorage.setItem(ACCESS_KEY, "granted");
   sessionStorage.setItem(TEAM_KEY, teamNo);
   sessionStorage.setItem(INDEX_KEY, "0");
@@ -133,6 +132,14 @@ function updateTimerUI() {
 }
 
 // ================================
+// SCORE CALCULATION (TIME-BASED)
+// ================================
+function calculateScore(timeTaken) {
+  const score = 100 - timeTaken;
+  return score < 10 ? 10 : score;
+}
+
+// ================================
 // SEND ANSWER
 // ================================
 function sendAnswer() {
@@ -147,6 +154,8 @@ function sendAnswer() {
   showUserMessage(rawAnswer);
   input.value = "";
 
+  const score = calculateScore(timeElapsed);
+
   fetch("http://127.0.0.1:8000/check-answer", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -154,7 +163,8 @@ function sendAnswer() {
       team_no: sessionStorage.getItem(TEAM_KEY),
       qid: currentIndex,
       answer: rawAnswer.toLowerCase(),
-      time_taken: timeElapsed
+      time_taken: timeElapsed,
+      score: score
     })
   })
     .then(res => res.json())
@@ -162,7 +172,9 @@ function sendAnswer() {
       if (result.correct) {
         clearInterval(timerInterval);
 
-        showBotMessage(`Correct! Solved in ${timeElapsed} seconds.`);
+        showBotMessage(
+          `Correct! ⏱ ${timeElapsed}s | ⭐ Score: ${score}`
+        );
 
         currentIndex++;
         sessionStorage.setItem(INDEX_KEY, currentIndex.toString());
@@ -222,40 +234,3 @@ document.addEventListener("keydown", e => {
     }
   }
 });
-
-// ================================
-// DRAWER MENU LOGIC
-// ================================
-function toggleDrawer() {
-  document.getElementById("sideDrawer").classList.add("open");
-  document.getElementById("drawerOverlay").classList.add("show");
-}
-
-function closeDrawer() {
-  document.getElementById("sideDrawer").classList.remove("open");
-  document.getElementById("drawerOverlay").classList.remove("show");
-}
-
-// ================================
-// LOGOUT
-// ================================
-function logout() {
-  // Clear session
-  sessionStorage.clear();
-
-  // Reset state
-  questions = [];
-  currentIndex = 0;
-  quizStarted = false;
-  clearInterval(timerInterval);
-
-  // Reset UI
-  document.getElementById("chatBox").innerHTML = "";
-  document.getElementById("timer").innerText = "Time: 0s";
-
-  document.querySelector(".chat-header").classList.add("hidden");
-  document.querySelector(".chat-container").classList.add("hidden");
-  document.getElementById("accessScreen").style.display = "flex";
-
-  closeDrawer();
-}

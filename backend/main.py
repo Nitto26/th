@@ -5,11 +5,14 @@ import csv
 import os
 from datetime import datetime
 
+# =====================================
+# APP INITIALIZATION
+# =====================================
 app = FastAPI()
 
-# ==================================================
-# CORS CONFIGURATION (VALID & SAFE)
-# ==================================================
+# =====================================
+# CORS CONFIG (VALID & SAFE)
+# =====================================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -21,15 +24,15 @@ app.add_middleware(
     allow_headers=["Content-Type"]
 )
 
-# ==================================================
+# =====================================
 # FILE PATHS
-# ==================================================
+# =====================================
 QUESTIONS_FILE = "questions.csv"
 RESULTS_FILE = "results.csv"
 
-# ==================================================
+# =====================================
 # LOAD QUESTIONS FROM CSV
-# ==================================================
+# =====================================
 questions = []
 
 with open(QUESTIONS_FILE, newline="", encoding="utf-8") as f:
@@ -40,25 +43,33 @@ with open(QUESTIONS_FILE, newline="", encoding="utf-8") as f:
             "answer": row["answer"].strip().lower()
         })
 
-# ==================================================
+# =====================================
 # CREATE results.csv IF NOT EXISTS
-# ==================================================
+# =====================================
 if not os.path.exists(RESULTS_FILE):
     with open(RESULTS_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["question_id", "time_taken", "timestamp"])
+        writer.writerow([
+            "team_no",
+            "question_id",
+            "time_taken",
+            "score",
+            "timestamp"
+        ])
 
-# ==================================================
+# =====================================
 # REQUEST MODEL
-# ==================================================
+# =====================================
 class AnswerPayload(BaseModel):
+    team_no: str
     qid: int
     answer: str
     time_taken: int
+    score: int
 
-# ==================================================
+# =====================================
 # ROUTES
-# ==================================================
+# =====================================
 
 @app.get("/")
 def root():
@@ -67,7 +78,7 @@ def root():
 @app.get("/questions")
 def get_questions():
     """
-    Send questions ONLY (answers are hidden)
+    Send only questions (answers hidden)
     """
     return {
         "questions": [
@@ -79,8 +90,9 @@ def get_questions():
 @app.post("/check-answer")
 def check_answer(payload: AnswerPayload):
     """
-    Validate answer and store time if correct
+    Check answer and store result if correct
     """
+    # Validate question index
     if payload.qid < 0 or payload.qid >= len(questions):
         return {"correct": False}
 
@@ -91,8 +103,10 @@ def check_answer(payload: AnswerPayload):
         with open(RESULTS_FILE, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([
+                payload.team_no,
                 payload.qid,
                 payload.time_taken,
+                payload.score,
                 datetime.now().isoformat()
             ])
 
@@ -101,7 +115,7 @@ def check_answer(payload: AnswerPayload):
 @app.get("/results")
 def get_results():
     """
-    View stored timer results
+    View all stored results
     """
     results = []
     with open(RESULTS_FILE, newline="", encoding="utf-8") as f:
