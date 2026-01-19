@@ -11,6 +11,9 @@ const TEAM_KEY = "heist_team_no";
 // ================================
 let timerInterval = null;
 let timeElapsed = 0;
+let maxAllowedTime = null;
+let globalTimeout = null;
+let totalScore = 0;
 
 // ================================
 // QUIZ STATE
@@ -23,6 +26,18 @@ let quizStarted = false;
 // RESTORE SESSION ON LOAD
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
+  // Get max time from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('time')) {
+    maxAllowedTime = parseInt(urlParams.get('time'));
+    if (!isNaN(maxAllowedTime) && maxAllowedTime > 0) {
+      // Show max time in timer UI
+      const timer = document.getElementById("timer");
+      if (timer) timer.innerText = `Time: 0s / ${maxAllowedTime}s`;
+    } else {
+      maxAllowedTime = null;
+    }
+  }
   if (sessionStorage.getItem(ACCESS_KEY) === "granted") {
     currentIndex = parseInt(sessionStorage.getItem(INDEX_KEY)) || 0;
     startQuizUI();
@@ -32,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ================================
 // ACCESS CHECK (TEAM + CODE)
 // ================================
-function checkAccess() {
+window.checkAccess = function checkAccess() {
   const teamInput = document.getElementById("teamNo");
   const codeInput = document.getElementById("accessCode");
   const error = document.getElementById("accessError");
@@ -72,6 +87,14 @@ function startQuizUI() {
 
   quizStarted = true;
 
+  // If maxAllowedTime is set, start global timer
+  if (maxAllowedTime && !globalTimeout) {
+    globalTimeout = setTimeout(() => {
+      showBotMessage("⏰ Time's up! Submitting your score...");
+      endQuizDueToTimeout();
+    }, maxAllowedTime * 1000);
+  }
+
   if (questions.length === 0) {
     loadQuestions();
   }
@@ -81,7 +104,7 @@ function startQuizUI() {
 // QUESTIONS (LOAD FROM CSV)
 // ================================
 function loadQuestions() {
-  fetch('../backend/questions.csv')
+  fetch('./questions.csv')
     .then(response => response.text())
     .then(csv => {
       questions = parseCSVQuestions(csv);
@@ -139,7 +162,13 @@ function startTimer() {
 
 function updateTimerUI() {
   const timer = document.getElementById("timer");
-  if (timer) timer.innerText = `Time: ${timeElapsed}s`;
+  if (timer) {
+    if (maxAllowedTime) {
+      timer.innerText = `Time: ${timeElapsed}s / ${maxAllowedTime}s`;
+    } else {
+      timer.innerText = `Time: ${timeElapsed}s`;
+    }
+  }
 }
 
 // ================================
@@ -169,6 +198,7 @@ function sendAnswer() {
   const correctAnswer = questions[currentIndex].answer.toLowerCase();
   if (rawAnswer.toLowerCase() === correctAnswer) {
     clearInterval(timerInterval);
+    totalScore += score;
     showBotMessage(`Correct! ⏱ ${timeElapsed}s | ⭐ Score: ${score}`);
     currentIndex++;
     sessionStorage.setItem(INDEX_KEY, currentIndex.toString());
@@ -176,15 +206,30 @@ function sendAnswer() {
     if (currentIndex < questions.length) {
       setTimeout(showQuestion, 800);
     } else {
-      showBotMessage("🎉 Quiz completed!");
-      document.getElementById("timer").innerText = "";
-      sessionStorage.removeItem(INDEX_KEY);
-      // --- CRITICAL: SEND SCORE TO HUB ---
-      submitScoreToHub(score);
+      finishQuiz();
     }
   } else {
     showBotMessage("Wrong answer. Try again.");
   }
+}
+
+function finishQuiz() {
+  showBotMessage(`🎉 Quiz completed!\nTotal Score: ${totalScore}`);
+  document.getElementById("timer").innerText = "";
+  sessionStorage.removeItem(INDEX_KEY);
+  if (globalTimeout) clearTimeout(globalTimeout);
+  // --- CRITICAL: SEND SCORE TO HUB ---
+  submitScoreToHub(totalScore);
+}
+
+function endQuizDueToTimeout() {
+  clearInterval(timerInterval);
+  quizStarted = false;
+  showBotMessage(`⏰ Time's up!\nTotal Score: ${totalScore}`);
+  document.getElementById("timer").innerText = "";
+  sessionStorage.removeItem(INDEX_KEY);
+  // --- CRITICAL: SEND SCORE TO HUB ---
+  submitScoreToHub(totalScore);
 }
 
 // --- HUB INTEGRATION CODE ---
@@ -195,6 +240,9 @@ function submitScoreToHub(finalScore) {
     type: 'GAME_OVER',
     payload: { score: finalScore }
   }, '*');
+  // Optionally, disable input after submission
+  const input = document.getElementById("userInput");
+  if (input) input.disabled = true;
 }
 
 // ================================
