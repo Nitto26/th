@@ -78,14 +78,13 @@ function startQuizUI() {
 }
 
 // ================================
-// LOAD QUESTIONS (BACKEND)
+// QUESTIONS (LOAD FROM CSV)
 // ================================
 function loadQuestions() {
-  fetch("http://127.0.0.1:8000/questions")
-    .then(res => res.json())
-    .then(data => {
-      questions = data.questions || [];
-
+  fetch('../backend/questions.csv')
+    .then(response => response.text())
+    .then(csv => {
+      questions = parseCSVQuestions(csv);
       if (questions.length > 0) {
         showQuestion();
       } else {
@@ -95,6 +94,18 @@ function loadQuestions() {
     .catch(() => {
       showBotMessage("Failed to load questions.");
     });
+}
+
+function parseCSVQuestions(csv) {
+  const lines = csv.trim().split('\n');
+  const result = [];
+  for (let i = 1; i < lines.length; i++) { // skip header
+    const [question, answer] = lines[i].split(/,(.+)/); // split only on first comma
+    if (question && answer) {
+      result.push({ question: question.trim(), answer: answer.trim() });
+    }
+  }
+  return result;
 }
 
 // ================================
@@ -140,7 +151,7 @@ function calculateScore(timeTaken) {
 }
 
 // ================================
-// SEND ANSWER
+// SEND ANSWER (FRONTEND ONLY)
 // ================================
 function sendAnswer() {
   if (!quizStarted) return;
@@ -155,44 +166,35 @@ function sendAnswer() {
   input.value = "";
 
   const score = calculateScore(timeElapsed);
+  const correctAnswer = questions[currentIndex].answer.toLowerCase();
+  if (rawAnswer.toLowerCase() === correctAnswer) {
+    clearInterval(timerInterval);
+    showBotMessage(`Correct! ⏱ ${timeElapsed}s | ⭐ Score: ${score}`);
+    currentIndex++;
+    sessionStorage.setItem(INDEX_KEY, currentIndex.toString());
 
-  fetch("http://127.0.0.1:8000/check-answer", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      team_no: sessionStorage.getItem(TEAM_KEY),
-      qid: currentIndex,
-      answer: rawAnswer.toLowerCase(),
-      time_taken: timeElapsed,
-      score: score
-    })
-  })
-    .then(res => res.json())
-    .then(result => {
-      if (result.correct) {
-        clearInterval(timerInterval);
+    if (currentIndex < questions.length) {
+      setTimeout(showQuestion, 800);
+    } else {
+      showBotMessage("🎉 Quiz completed!");
+      document.getElementById("timer").innerText = "";
+      sessionStorage.removeItem(INDEX_KEY);
+      // --- CRITICAL: SEND SCORE TO HUB ---
+      submitScoreToHub(score);
+    }
+  } else {
+    showBotMessage("Wrong answer. Try again.");
+  }
+}
 
-        showBotMessage(
-          `Correct! ⏱ ${timeElapsed}s | ⭐ Score: ${score}`
-        );
-
-        currentIndex++;
-        sessionStorage.setItem(INDEX_KEY, currentIndex.toString());
-
-        if (currentIndex < questions.length) {
-          setTimeout(showQuestion, 800);
-        } else {
-          showBotMessage("🎉 Quiz completed!");
-          document.getElementById("timer").innerText = "";
-          sessionStorage.removeItem(INDEX_KEY);
-        }
-      } else {
-        showBotMessage("Wrong answer. Try again.");
-      }
-    })
-    .catch(() => {
-      showBotMessage("Server error. Try again.");
-    });
+// --- HUB INTEGRATION CODE ---
+function submitScoreToHub(finalScore) {
+  console.log("📤 Game sending score:", finalScore);
+  // Send message to parent (The Hub)
+  window.parent.postMessage({
+    type: 'GAME_OVER',
+    payload: { score: finalScore }
+  }, '*');
 }
 
 // ================================
